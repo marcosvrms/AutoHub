@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ListingStatus {
+  DRAFT
+  PUBLISHED
+  SOLD
+  INACTIVE
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listings Listing[]
+}
+
+model VehicleCategory {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+
+  vehicles Vehicle[]
+}
+
+model Vehicle {
+  id           String          @id @default(uuid())
+  manufacturer String
+  model        String
+  year         Int?
+  categoryId   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category VehicleCategory @relation(fields: [categoryId], references: [id])
+  listing  Listing?
+}
+
+model Listing {
+  id          String        @id @default(uuid())
+  title       String
+  description String?
+  price       Decimal       @db.Decimal(15, 2)
+  status      ListingStatus @default(DRAFT)
+
+  city  String?
+  state String?
+
+  sellerId  String
+  vehicleId String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  seller  User    @relation(fields: [sellerId], references: [id])
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+}
