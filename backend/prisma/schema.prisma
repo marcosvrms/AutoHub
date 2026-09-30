@@ -12,62 +12,80 @@ datasource db {
   provider = "postgresql"
 }
 
-enum ListingStatus {
-  DRAFT
-  PUBLISHED
-  SOLD
-  INACTIVE
+enum AttributeType {
+  BOOLEAN
+  INTEGER
+  DECIMAL
+  TEXT
+  SELECT
+  MULTI_SELECT
 }
 
-model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Category {
+  id   String @id @default(uuid())
+  name String @unique
 
-  listings Listing[]
+  vehicleModels VehicleModel[]
+  vehicleTypes  VehicleType[]
 }
 
-model VehicleCategory {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  slug      String    @unique
-  createdAt DateTime  @default(now())
+model VehicleType {
+  id         String @id @default(uuid())
+  categoryId String
+  name       String
 
-  vehicles Vehicle[]
+  category      Category       @relation(fields: [categoryId], references: [id])
+  vehicleModels VehicleModel[]
+
+  @@unique([categoryId, name])
 }
 
-model Vehicle {
-  id           String          @id @default(uuid())
-  manufacturer String
-  model        String
-  year         Int?
-  categoryId   String
+model Manufacturer {
+  id   String @id @default(uuid())
+  name String @unique
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  category VehicleCategory @relation(fields: [categoryId], references: [id])
-  listing  Listing?
+  vehicleModels VehicleModel[]
 }
 
-model Listing {
-  id          String        @id @default(uuid())
-  title       String
-  description String?
-  price       Decimal       @db.Decimal(15, 2)
-  status      ListingStatus @default(DRAFT)
+model VehicleModel {
+  id              String  @id @default(uuid())
+  vehicleTypeId   String
+  manufacturerId  String
+  name            String
+  manufactureYear Int
+  description     String?
+  catalogImage    String?
 
-  city  String?
-  state String?
+  vehicleType  VehicleType      @relation(fields: [vehicleTypeId], references: [id])
+  manufacturer Manufacturer     @relation(fields: [manufacturerId], references: [id])
+  attributes   ModelAttribute[]
+  category     Category?        @relation(fields: [categoryId], references: [id])
+  categoryId   String?
 
-  sellerId  String
-  vehicleId String @unique
+  @@unique([vehicleTypeId, manufacturerId, name, manufactureYear])
+}
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model ModelAttribute {
+  id             String        @id @default(uuid())
+  vehicleModelId String
+  name           String
+  type           AttributeType
+  required       Boolean       @default(true)
+  displayOrder   Int           @default(0)
 
-  seller  User    @relation(fields: [sellerId], references: [id])
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+  vehicleModel VehicleModel           @relation(fields: [vehicleModelId], references: [id], onDelete: Cascade)
+  options      ModelAttributeOption[]
+
+  @@unique([vehicleModelId, name])
+}
+
+model ModelAttributeOption {
+  id           String @id @default(uuid())
+  attributeId  String
+  value        String
+  displayOrder Int    @default(0)
+
+  attribute ModelAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@unique([attributeId, value])
 }
