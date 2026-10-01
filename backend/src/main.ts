@@ -4,9 +4,9 @@ import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
+  app.enableShutdownHooks();
   app.setGlobalPrefix('api');
-
+  await app.listen(process.env.PORT ?? 3001);
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
   });
@@ -23,8 +23,6 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, documentFactory, {
     useGlobalPrefix: true,
   });
-
-  await app.listen(process.env.PORT ?? 3001);
 }
 
 bootstrap();
