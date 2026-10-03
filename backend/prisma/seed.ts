@@ -8,33 +8,33 @@ if (!connectionString) {
   throw new Error('DATABASE_URL não foi definida.');
 }
 
-const adapter = new PrismaPg({
-  connectionString,
-});
+const adapter = new PrismaPg({ connectionString });
+const prisma = new PrismaClient({ adapter });
 
-const prisma = new PrismaClient({
-  adapter,
-});
-
-// Injetando categorias padrões/iniciais.
 async function main() {
-  const categories = [
-    'Terrestre',
-    'Aquático',
-    'Aéreo',
-  ];
+  const categories = ['Terrestre', 'Aquático', 'Aéreo'];
 
   for (const name of categories) {
     await prisma.category.upsert({
-      where: {
-        name,
-      },
+      where: { name },
       update: {},
-      create: {
-        name,
-      },
+      create: { name },
     });
   }
+
+  await prisma.user.upsert({
+    where: { email: 'teste@autohub.local' },
+    update: {},
+    create: {
+      name: 'Usuário de Teste',
+      email: 'teste@autohub.local',
+      passwordHash: 'hash-temporario-nao-usar-em-producao',
+      document: '00000000000',
+      phone: '49999999999',
+      city: 'Videira',
+      state: 'SC',
+    },
+  });
 
   console.log('Seed executado com sucesso.');
 }
@@ -47,5 +47,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
-  console.log(new URL(connectionString).username, new URL(connectionString).host);

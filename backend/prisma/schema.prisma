@@ -12,6 +12,16 @@ datasource db {
   provider = "postgresql"
 }
 
+enum AccountType {
+  INDIVIDUAL
+  DEALERSHIP
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
 enum AttributeType {
   BOOLEAN
   INTEGER
@@ -21,12 +31,51 @@ enum AttributeType {
   MULTI_SELECT
 }
 
+enum ListingStatus {
+  DRAFT
+  PUBLISHED
+  SOLD
+  INACTIVE
+}
+
+model User {
+  id   String @id @default(uuid())
+  name String
+
+  email        String @unique
+  passwordHash String
+
+  accountType AccountType @default(INDIVIDUAL)
+  role        UserRole    @default(USER)
+
+  document String @unique
+  phone    String
+
+  birthDate      DateTime?
+  foundationDate DateTime?
+
+  photo       String?
+  description String?
+
+  city    String
+  state   String
+  country String @default("Brasil")
+
+  address           String?
+  cep               String?
+  stateRegistration String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listings Listing[]
+}
+
 model Category {
   id   String @id @default(uuid())
   name String @unique
 
-  vehicleModels VehicleModel[]
-  vehicleTypes  VehicleType[]
+  vehicleTypes VehicleType[]
 }
 
 model VehicleType {
@@ -56,11 +105,10 @@ model VehicleModel {
   description     String?
   catalogImage    String?
 
+  listings     Listing[]
   vehicleType  VehicleType      @relation(fields: [vehicleTypeId], references: [id])
   manufacturer Manufacturer     @relation(fields: [manufacturerId], references: [id])
   attributes   ModelAttribute[]
-  category     Category?        @relation(fields: [categoryId], references: [id])
-  categoryId   String?
 
   @@unique([vehicleTypeId, manufacturerId, name, manufactureYear])
 }
@@ -73,8 +121,9 @@ model ModelAttribute {
   required       Boolean       @default(true)
   displayOrder   Int           @default(0)
 
-  vehicleModel VehicleModel           @relation(fields: [vehicleModelId], references: [id], onDelete: Cascade)
-  options      ModelAttributeOption[]
+  listingValues ListingAttributeValue[]
+  vehicleModel  VehicleModel            @relation(fields: [vehicleModelId], references: [id], onDelete: Cascade)
+  options       ModelAttributeOption[]
 
   @@unique([vehicleModelId, name])
 }
@@ -85,7 +134,82 @@ model ModelAttributeOption {
   value        String
   displayOrder Int    @default(0)
 
+  listingOptionValues ListingAttributeValueOption[]
+
   attribute ModelAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
 
   @@unique([attributeId, value])
+}
+
+model Listing {
+  id             String  @id @default(uuid())
+  sellerId       String?
+  vehicleModelId String
+
+  title            String
+  description      String?
+  price            Decimal @db.Decimal(15, 2)
+  acceptsProposals Boolean @default(false)
+
+  status ListingStatus @default(DRAFT)
+
+  country String @default("Brasil")
+  state   String
+  city    String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  soldAt    DateTime?
+
+  seller       User?        @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+  vehicleModel VehicleModel @relation(fields: [vehicleModelId], references: [id], onDelete: Cascade)
+
+  attributeValues ListingAttributeValue[]
+  images          ListingImage[]
+
+  @@index([sellerId])
+  @@index([vehicleModelId])
+  @@index([status])
+  @@index([price])
+  @@index([city, state])
+}
+
+model ListingAttributeValue {
+  id               String @id @default(uuid())
+  listingId        String
+  modelAttributeId String
+
+  textValue    String?
+  integerValue Int?
+  decimalValue Decimal? @db.Decimal(18, 4)
+  booleanValue Boolean?
+
+  listing        Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  modelAttribute ModelAttribute @relation(fields: [modelAttributeId], references: [id], onDelete: Cascade)
+
+  selectedOptions ListingAttributeValueOption[]
+
+  @@unique([listingId, modelAttributeId])
+}
+
+model ListingAttributeValueOption {
+  listingAttributeValueId String
+  modelAttributeOptionId  String
+
+  listingAttributeValue ListingAttributeValue @relation(fields: [listingAttributeValueId], references: [id], onDelete: Cascade)
+  modelAttributeOption  ModelAttributeOption  @relation(fields: [modelAttributeOptionId], references: [id], onDelete: Cascade)
+
+  @@id([listingAttributeValueId, modelAttributeOptionId])
+}
+
+model ListingImage {
+  id           String   @id @default(uuid())
+  listingId    String
+  url          String
+  displayOrder Int
+  createdAt    DateTime @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, displayOrder])
 }
