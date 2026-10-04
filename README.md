@@ -47,3 +47,87 @@ Estrutura:               ┌─────────────────�
                          │     PostgreSQL      │
                          │    Docker / :5432   │
                          └─────────────────────┘
+## Carteira virtual
+
+O AutoHub possui uma carteira virtual utilizada apenas para simulação.
+Não existem pagamentos reais.
+Cada usuário possui um saldo interno que pode ser utilizado para comprar anúncios.
+
+### Tipos de transação
+
+- DEPOSIT: crédito realizado pelo administrador.
+- PURCHASE: débito realizado pela compra de um anúncio.
+- SALE: crédito recebido pelo vendedor.
+
+### Compra
+
+Uma compra:
+
+1. Verifica se o anúncio está publicado.
+2. Verifica se o comprador não é o vendedor.
+3. Verifica o saldo.
+4. Debita o comprador.
+5. Marca o anúncio como SOLD.
+6. Credita o vendedor.
+7. Registra a compra.
+8. Registra as duas transações financeiras.
+
+## Backend
+
+O backend do AutoHub foi desenvolvido com:
+
+- NestJS
+- TypeScript
+- Prisma
+- PostgreSQL
+- JWT
+- Swagger
+
+### Funcionalidades
+
+- Autenticação e autorização
+- Cadastro de usuários
+- Controle de permissões
+- Catálogo de veículos
+- Categorias
+- Tipos de veículos
+- Fabricantes
+- Modelos por ano
+- Atributos dinâmicos
+- Anúncios
+- Busca e filtros
+- Paginação
+- Ordenação
+- Imagens por URL
+- Upload de imagens
+- Carteira virtual
+- Compras
+- Histórico financeiro
+
+## Executando o projeto
+
+### 1. Iniciar PostgreSQL
+docker compose up -d
+
+### 2. Instalar dependências
+cd backend
+npm install
+
+### 3. Configurar ambiente
+Copie `.env.example` para `.env` e configure:
+DATABASE_URL
+JWT_SECRET
+PORT
+FRONTEND_URL
+
+### 4. Aplicar banco
+npx prisma migrate deploy
+
+### 5. Gerar Prisma Client
+npx prisma generate
+
+### 6. Seed
+npx prisma db seed
+
+### 7. Executar backend
+npm run start:dev
