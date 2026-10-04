@@ -7,6 +7,11 @@ import {
   Patch,
   Post,
   Query,
+  FileTypeValidator,
+  MaxFileSizeValidator,
+  ParseFilePipeBuilder,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 
 import { ListingSearchDto } from './dto/listing-search.dto.js';
@@ -20,11 +25,16 @@ import { ListingsService } from './listings.service.js';
 import { UserRole } from '../generated/prisma/client.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { Public } from '../auth/decorators/public.decorator.js';
+import { ApiBody, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { ListingImageStorage } from './listing-image.storage.js';
 
 @Controller('listings')
 export class ListingsController {
   constructor(
     private readonly listingsService: ListingsService,
+    private readonly imageStorage: ListingImageStorage,
   ) {}
 
 @Roles(UserRole.ADMIN)
@@ -89,7 +99,7 @@ findMine(
   }
 
   @Post(':id/images')
-  addImage(
+  async addImage(
     @Param('id') id: string,
     @Body() dto: CreateListingImageDto,
     @CurrentUser() user: AuthenticatedUser
@@ -101,10 +111,65 @@ findMine(
     );
   }
 
+  @Post(':id/images/upload')
+@UseInterceptors(
+  FileInterceptor('file', {
+    storage: memoryStorage(),
+    limits: {
+      fileSize: 5 * 1024 * 1024,
+      files: 1,
+    },
+  }),
+)
+@ApiConsumes('multipart/form-data')
+@ApiBody({
+  schema: {
+    type: 'object',
+    properties: {
+      file: {
+        type: 'string',
+        format: 'binary',
+      },
+      displayOrder: {
+        type: 'integer',
+        minimum: 1,
+      },
+    },
+    required: ['file', 'displayOrder'],
+  },
+})
+async uploadImage(
+  @Param('id') id: string,
+  @UploadedFile(
+    new ParseFilePipeBuilder()
+      .addFileTypeValidator({
+        fileType: /^image\/(jpeg|png|webp)$/,
+      })
+      .addMaxSizeValidator({
+        maxSize: 5 * 1024 * 1024,
+      })
+      .build({
+        fileIsRequired: true,
+      }),
+  )
+  file: Express.Multer.File,
+  @Body() dto: CreateListingImageDto,
+  @CurrentUser() user: AuthenticatedUser,
+    ) {
+      return this.listingsService.addUploadedImage(
+        id,
+        file,
+        dto.displayOrder,
+        user,
+        
+      );
+    }
+    
+
   @Delete(':listingId/images/:imageId')
   removeImage(
     @Param('listingId') listingId: string,
-    @Param('imageId') imageId: string,
+    @Param('imageId') imageId: string,  
     @CurrentUser() user: AuthenticatedUser
   ) {
     return this.listingsService.removeImage(

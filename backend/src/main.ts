@@ -22,12 +22,13 @@ async function bootstrap() {
     .setTitle('AutoHub API')
     .setDescription('API da plataforma AutoHub')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
 
   const documentFactory = () =>
     SwaggerModule.createDocument(app, config);
 
-  SwaggerModule.setup('docs', app, documentFactory, {
+  SwaggerModule.setup('api/docs', app, documentFactory, {
     useGlobalPrefix: true,
   });
 }

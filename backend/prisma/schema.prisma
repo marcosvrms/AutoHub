@@ -231,7 +231,7 @@ model ListingImage {
 model WalletTransaction {
   id String @id @default(uuid())
 
-  userId String
+  userId String?
   type   WalletTransactionType
 
   amount      Decimal @db.Decimal(15, 2)
@@ -241,7 +241,7 @@ model WalletTransaction {
 
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
 
@@ -255,7 +255,7 @@ model Purchase {
 
   listingId String @unique
 
-  buyerId  String
+  buyerId  String?
   sellerId String?
 
   amount Decimal @db.Decimal(15, 2)
@@ -264,8 +264,7 @@ model Purchase {
 
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Restrict)
 
-  buyer User @relation("PurchaseBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
-
+  buyer  User? @relation("PurchaseBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
   seller User? @relation("PurchaseSeller", fields: [sellerId], references: [id], onDelete: SetNull)
 
   walletTransactions WalletTransaction[]

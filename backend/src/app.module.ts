@@ -13,12 +13,21 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { WalletModule } from './wallet/wallet.module.js';
 import { PurchaseModule } from './purchase/purchase.module.js';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'node:path';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+        ServeStaticModule.forRoot({
+        rootPath: join(
+          process.cwd(),
+          'uploads',
+        ),
+        serveRoot: '/uploads',
+      }),
     PrismaModule,
     CategoriesModule,
     VehicleTypesModule,

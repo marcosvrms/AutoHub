@@ -390,19 +390,11 @@ export class UsersService {
          * O sellerId será colocado como null
          * pelo onDelete: SetNull da relação.
          */
-        await tx.user.delete({
-          where: {
-            id,
-          },
-        });
-      },
-    );
+        await tx.user.delete({ where: { id } });
 
-    return {
-      message:
-        'Usuário excluído com sucesso.',
-    };
-  }
+        return { message: 'Usuário excluído com sucesso.' };
+      });
+    }
 
   // =========================================================
   // CONSULTAS INTERNAS

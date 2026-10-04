@@ -20,6 +20,7 @@ import { SetListingAttributesDto } from './dto/set-listing-attributes.dto.js';
 import { ListingAttributeValueDto } from './dto/listing-attribute-value.dto.js';
 import { CreateListingImageDto } from './dto/create-listing-image.dto.js';
 import { ListingSearchDto } from './dto/listing-search.dto.js';
+import { ListingImageStorage } from './listing-image.storage.js';
 
 type AttributeFilter = {
   attributeId: string;
@@ -359,7 +360,7 @@ private async findListingInternal(
   return listing;
 }
   
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly imageStorage: ListingImageStorage) {}
 
   async findAll(query: ListingSearchDto) {
   const {
@@ -1184,8 +1185,7 @@ private async findListingInternal(
       dto.displayOrder;
 
     if (displayOrder === undefined) {
-      const existingImages =
-        await this.prisma.listingImage.findMany({
+      const existingImages = await this.prisma.listingImage.findMany({
           where: {
             listingId,
           },
@@ -1246,6 +1246,115 @@ private async findListingInternal(
     });
   }
 
+  async addUploadedImage(
+  listingId: string,
+  file: Express.Multer.File,
+  requestedOrder: number | undefined,
+  currentUser: AuthenticatedUser,
+) {
+  const listing = await this.prisma.listing.findUnique({
+    where: { id: listingId },
+    select: {
+      id: true,
+      status: true,
+      sellerId: true,
+    },
+  });
+
+  if (!listing) {
+    throw new NotFoundException('Anúncio não encontrado.');
+  }
+  
+  this.ensureOwnerOrAdmin(listing.sellerId, currentUser);
+
+  if (
+    listing.status === ListingStatus.SOLD
+  ) {
+    throw new ConflictException(
+      'Não é possível alterar imagens de um anúncio vendido.',
+    );
+  }
+
+  if (
+    listing.status === ListingStatus.PUBLISHED
+  ) {
+    throw new ConflictException(
+      'O anúncio precisa estar INACTIVE antes de alterar suas imagens.',
+    );
+  }
+
+  const imageCount =
+    await this.prisma.listingImage.count({
+      where: {
+        listingId,
+      },
+    });
+
+  if (imageCount >= 20) {
+    throw new ConflictException(
+      'Um anúncio pode possuir no máximo 20 imagens.',
+    );
+  }
+
+  let displayOrder = requestedOrder;
+
+  if (displayOrder === undefined) {
+    const existingImages =
+      await this.prisma.listingImage.findMany({
+        where: { listingId },
+        select: { displayOrder: true },
+      });
+
+    const usedOrders = new Set(
+      existingImages.map((image) => image.displayOrder),
+    );
+
+    displayOrder = 1;
+
+    while (usedOrders.has(displayOrder) && displayOrder <= 20) {
+      displayOrder++;
+    }
+  }
+
+  if (displayOrder < 1 || displayOrder > 20) {
+    throw new BadRequestException(
+      'A posição da imagem deve estar entre 1 e 20.',
+    );
+  }
+
+  const existingImage = await this.prisma.listingImage.findUnique({
+      where: {
+        listingId_displayOrder: {
+          listingId,
+          displayOrder,
+        },
+      },
+    });
+
+  if (existingImage) {
+    throw new ConflictException(
+      `Já existe uma imagem na posição ${displayOrder}.`,
+    );
+  }
+
+  const url =
+    await this.imageStorage.save(file);
+
+  try {
+    return await this.prisma.listingImage.create({
+      data: {
+        listingId,
+        url,
+        displayOrder,
+      },
+    });
+  } catch (error) {
+    await this.imageStorage.delete(url);
+
+    throw error;
+  }
+}
+
   async remove(id: string) {
     await this.findListingInternal(id);
 
@@ -1289,6 +1398,15 @@ private async findListingInternal(
         'Imagem não encontrada neste anúncio.',
       );
     }
+    await this.prisma.listingImage.delete({
+      where: {
+        id: imageId,
+      },
+    });
+
+    await this.imageStorage.delete(
+      image.url,
+    );
 
     return this.prisma.listingImage.delete({
       where: {
