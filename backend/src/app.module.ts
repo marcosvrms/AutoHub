@@ -11,6 +11,8 @@ import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { WalletModule } from './wallet/wallet.module.js';
+import { PurchaseModule } from './purchase/purchase.module.js';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { AppService } from './app.service.js';
     ListingsModule,
     UsersModule,
     AuthModule,
+    WalletModule,
+    PurchaseModule,
   ],
   controllers: [AppController],
 

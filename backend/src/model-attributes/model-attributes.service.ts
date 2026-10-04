@@ -7,7 +7,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service.js';
 
-import { AttributeType } from '../generated/prisma/client.js';
+import { AttributeType, ListingStatus, Prisma } from '../generated/prisma/client.js';
 
 import { CreateModelAttributeDto } from './dto/create-model-attribute.dto.js';
 import { UpdateModelAttributeDto } from './dto/update-model-attribute.dto.js';
@@ -33,6 +33,19 @@ export class ModelAttributesService {
       orderBy: {
         displayOrder: 'asc',
       },
+    });
+  }
+
+  private async deactivateListings(
+  vehicleModelId: string,
+  client: Prisma.TransactionClient = this.prisma,
+  ) {
+    await client.listing.updateMany({
+      where: {
+        vehicleModelId,
+        status: { not: ListingStatus.SOLD },
+      },
+      data: { status: ListingStatus.INACTIVE },
     });
   }
 
@@ -92,10 +105,13 @@ export class ModelAttributesService {
     const options = this.normalizeOptions(
       dto.options ?? [],
     );
-
+    
     this.validateOptions(dto.type, options);
 
-    return this.prisma.modelAttribute.create({
+    return this.prisma.$transaction(async (tx) => {
+    await this.deactivateListings(vehicleModelId, tx);
+
+    return tx.modelAttribute.create({
       data: {
         vehicleModelId,
         name,
@@ -114,6 +130,7 @@ export class ModelAttributesService {
         },
       },
     });
+  });
   }
 
   async update(
@@ -148,20 +165,17 @@ export class ModelAttributesService {
     this.validateOptions(type, options);
 
     return this.prisma.$transaction(async (tx) => {
-      const updatedAttribute =
-        await tx.modelAttribute.update({
-          where: {
-            id,
-          },
-          data: {
-            name,
-            type,
-            required: true,
-            displayOrder:
-              dto.displayOrder ??
-              currentAttribute.displayOrder,
-          },
-        });
+      await this.deactivateListings(currentAttribute.vehicleModelId, tx);
+
+      const updatedAttribute = await tx.modelAttribute.update({
+        where: { id },
+        data: {
+          name,
+          type,
+          required: true,
+          displayOrder: dto.displayOrder ?? currentAttribute.displayOrder,
+        },
+      });
 
       if (dto.options !== undefined) {
         await tx.modelAttributeOption.deleteMany({
@@ -197,12 +211,14 @@ export class ModelAttributesService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
+    const attribute = await this.findOne(id);
 
-    return this.prisma.modelAttribute.delete({
-      where: {
-        id,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await this.deactivateListings(attribute.vehicleModelId, tx);
+
+      return tx.modelAttribute.delete({
+        where: { id },
+      });
     });
   }
 

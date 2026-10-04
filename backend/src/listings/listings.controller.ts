@@ -6,8 +6,10 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 
+import { ListingSearchDto } from './dto/listing-search.dto.js';
 import { CreateListingDto } from './dto/create-listing.dto.js';
 import { CreateListingImageDto } from './dto/create-listing-image.dto.js';
 import { SetListingAttributesDto } from './dto/set-listing-attributes.dto.js';
@@ -17,6 +19,7 @@ import type { AuthenticatedUser } from '../auth/types/authenticated-user.js';
 import { ListingsService } from './listings.service.js';
 import { UserRole } from '../generated/prisma/client.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { Public } from '../auth/decorators/public.decorator.js';
 
 @Controller('listings')
 export class ListingsController {
@@ -48,10 +51,11 @@ findMine(
   );
 }
 
+  @Public()
   @Get()
-  findAll() {
-    return this.listingsService.findAll();
-  }
+  findAll(@Query() query: ListingSearchDto) {
+  return this.listingsService.findAll(query);
+}
 
   @Get(':id/attributes')
   findAttributes(

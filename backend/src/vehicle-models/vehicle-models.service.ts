@@ -71,6 +71,22 @@ export class VehicleModelsService {
     return vehicleModel;
   }
 
+  private async deactivateListings(
+    vehicleModelId: string,
+  ) {
+    await this.prisma.listing.updateMany({
+      where: {
+        vehicleModelId,
+        status: {
+          not: 'SOLD',
+        },
+      },
+      data: {
+        status: 'INACTIVE',
+      },
+    });
+  }
+
   async create(dto: CreateVehicleModelDto) {
     await this.ensureVehicleTypeExists(dto.vehicleTypeId);
     await this.ensureManufacturerExists(dto.manufacturerId);
@@ -147,6 +163,8 @@ export class VehicleModelsService {
       );
     }
 
+    await this.deactivateListings(id);
+
     return this.prisma.vehicleModel.update({
       where: {
         id,
@@ -167,14 +185,26 @@ export class VehicleModelsService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
+  await this.findOne(id);
 
-    return this.prisma.vehicleModel.delete({
-      where: {
-        id,
-      },
-    });
+  const listingsCount = await this.prisma.listing.count({
+    where: {
+      vehicleModelId: id,
+    },
+  });
+
+  if (listingsCount > 0) {
+    throw new ConflictException(
+      'Não é possível excluir um modelo que possui anúncios ou histórico de vendas.',
+    );
   }
+
+  return this.prisma.vehicleModel.delete({
+    where: {
+      id,
+    },
+  });
+}
 
   private async ensureVehicleTypeExists(
     vehicleTypeId: string,
@@ -192,7 +222,7 @@ export class VehicleModelsService {
       );
     }
   }
-
+  
   private async ensureManufacturerExists(
     manufacturerId: string,
   ) {

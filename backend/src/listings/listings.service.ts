@@ -10,7 +10,7 @@ import {
   ListingStatus,
   UserRole
 } from '../generated/prisma/client.js';
-
+import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ForbiddenException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.js';
@@ -19,7 +19,17 @@ import { UpdateListingDto } from './dto/update-listing.dto.js';
 import { SetListingAttributesDto } from './dto/set-listing-attributes.dto.js';
 import { ListingAttributeValueDto } from './dto/listing-attribute-value.dto.js';
 import { CreateListingImageDto } from './dto/create-listing-image.dto.js';
+import { ListingSearchDto } from './dto/listing-search.dto.js';
 
+type AttributeFilter = {
+  attributeId: string;
+  value?: unknown;
+  min?: unknown;
+  max?: unknown;
+  contains?: string;
+  optionIds?: string[];
+  match?: 'ANY' | 'ALL';
+};
 
 @Injectable()
 export class ListingsService {
@@ -50,7 +60,250 @@ private ensureOwnerOrAdmin(
       );
     }
   }
-  
+
+  private async buildAttributeFilters(
+  attributesJson: string,
+): Promise<Prisma.ListingWhereInput[]> {
+  let filters: AttributeFilter[];
+
+  try {
+    filters = JSON.parse(attributesJson);
+  } catch {
+    throw new BadRequestException(
+      'O parâmetro attributes deve ser um JSON válido.',
+    );
+  }
+
+  if (!Array.isArray(filters)) {
+    throw new BadRequestException(
+      'O parâmetro attributes deve ser uma lista de filtros.',
+    );
+  }
+
+  if (filters.length === 0) {
+    return [];
+  }
+
+  const attributeIds = [
+    ...new Set(
+      filters.map((filter) => {
+        if (!filter?.attributeId) {
+          throw new BadRequestException(
+            'Todo filtro de atributo deve possuir attributeId.',
+          );
+        }
+
+        return filter.attributeId;
+      }),
+    ),
+  ];
+
+  const modelAttributes = await this.prisma.modelAttribute.findMany({
+    where: {
+      id: {
+        in: attributeIds,
+      },
+    },
+    select: {
+      id: true,
+      type: true,
+    },
+  });
+
+  const attributeMap = new Map(
+    modelAttributes.map((attribute) => [attribute.id, attribute]),
+  );
+
+  const conditions: Prisma.ListingWhereInput[] = [];
+
+  for (const filter of filters) {
+    const attribute = attributeMap.get(filter.attributeId);
+
+    if (!attribute) {
+      throw new BadRequestException(
+        `Atributo ${filter.attributeId} não foi encontrado.`,
+      );
+    }
+
+    switch (attribute.type) {
+      case 'BOOLEAN': {
+        if (typeof filter.value !== 'boolean') {
+          throw new BadRequestException(
+            `O atributo ${filter.attributeId} espera um valor booleano.`,
+          );
+        }
+
+        conditions.push({
+          attributeValues: {
+            some: {
+              modelAttributeId: filter.attributeId,
+              booleanValue: filter.value,
+            },
+          },
+        });
+
+        break;
+      }
+
+      case 'INTEGER': {
+        const valueFilter: Prisma.IntNullableFilter = {};
+
+        if (filter.value !== undefined) {
+          valueFilter.equals = this.parseInteger(filter.value);
+        }
+
+        if (filter.min !== undefined) {
+          valueFilter.gte = this.parseInteger(filter.min);
+        }
+
+        if (filter.max !== undefined) {
+          valueFilter.lte = this.parseInteger(filter.max);
+        }
+
+        conditions.push({
+          attributeValues: {
+            some: {
+              modelAttributeId: filter.attributeId,
+              integerValue: valueFilter,
+            },
+          },
+        });
+
+        break;
+      }
+
+      case 'DECIMAL': {
+        const valueFilter: Prisma.DecimalNullableFilter = {};
+
+        if (filter.value !== undefined) {
+          valueFilter.equals = this.parseDecimal(filter.value);
+        }
+
+        if (filter.min !== undefined) {
+          valueFilter.gte = this.parseDecimal(filter.min);
+        }
+
+        if (filter.max !== undefined) {
+          valueFilter.lte = this.parseDecimal(filter.max);
+        }
+
+        conditions.push({
+          attributeValues: {
+            some: {
+              modelAttributeId: filter.attributeId,
+              decimalValue: valueFilter,
+            },
+          },
+        });
+
+        break;
+      }
+
+      case 'TEXT': {
+        const textFilter: Prisma.StringNullableFilter = {};
+
+        if (filter.value !== undefined) {
+          textFilter.equals = String(filter.value);
+        }
+
+        if (filter.contains !== undefined) {
+          textFilter.contains = filter.contains;
+        }
+
+        conditions.push({
+          attributeValues: {
+            some: {
+              modelAttributeId: filter.attributeId,
+              textValue: textFilter,
+            },
+          },
+        });
+
+        break;
+      }
+
+      case 'SELECT':
+      case 'MULTI_SELECT': {
+        if (
+          !Array.isArray(filter.optionIds) ||
+          filter.optionIds.length === 0
+        ) {
+          throw new BadRequestException(
+            `O atributo ${filter.attributeId} exige optionIds.`,
+          );
+        }
+
+        const match = filter.match ?? 'ANY';
+
+        if (match === 'ANY') {
+          conditions.push({
+            attributeValues: {
+              some: {
+                modelAttributeId: filter.attributeId,
+                selectedOptions: {
+                  some: {
+                    modelAttributeOptionId: {
+                      in: filter.optionIds,
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } else {
+          for (const optionId of filter.optionIds) {
+            conditions.push({
+              attributeValues: {
+                some: {
+                  modelAttributeId: filter.attributeId,
+                  selectedOptions: {
+                    some: {
+                      modelAttributeOptionId: optionId,
+                    },
+                  },
+                },
+              },
+            });
+          }
+        }
+
+        break;
+      }
+
+      default:
+        throw new BadRequestException(
+          `Tipo de atributo não suportado: ${attribute.type}`,
+        );
+    }
+  }
+
+  return conditions;
+}
+
+private parseInteger(value: unknown): number {
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed)) {
+    throw new BadRequestException(
+      `O valor ${String(value)} precisa ser um número inteiro.`,
+    );
+  }
+
+  return parsed;
+}
+
+private parseDecimal(value: unknown): number {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    throw new BadRequestException(
+      `O valor ${String(value)} precisa ser numérico.`,
+    );
+  }
+
+  return parsed;
+}
+
 private async findListingInternal(
   id: string,
 ) {
@@ -108,21 +361,253 @@ private async findListingInternal(
   
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll() {
-    return this.prisma.listing.findMany({
-      where: {
-      status: ListingStatus.PUBLISHED,
+  async findAll(query: ListingSearchDto) {
+  const {
+    q,
+    categoryId,
+    vehicleTypeId,
+    manufacturerId,
+    vehicleModelId,
+    minPrice,
+    maxPrice,
+    minYear,
+    maxYear,
+    state,
+    city,
+    acceptsProposals,
+    page = 1,
+    limit = 12,
+    sortBy = 'createdAt',
+    sortOrder = 'desc',
+    attributes,
+  } = query;
+
+  const where: Prisma.ListingWhereInput = {
+    status: ListingStatus.PUBLISHED,
+  };
+
+  const andConditions: Prisma.ListingWhereInput[] = [];
+
+  /*
+   * Busca por texto livre.
+   */
+  if (q?.trim()) {
+    const search = q.trim();
+
+    andConditions.push({
+      OR: [
+        {
+          title: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          description: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          city: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          state: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          vehicleModel: {
+            name: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+        },
+        {
+          vehicleModel: {
+            manufacturer: {
+              name: {
+                contains: search,
+                mode: 'insensitive',
+              },
+            },
+          },
+        },
+        {
+          vehicleModel: {
+            vehicleType: {
+              name: {
+                contains: search,
+                mode: 'insensitive',
+              },
+            },
+          },
+        },
+        {
+          vehicleModel: {
+            vehicleType: {
+              category: {
+                name: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          },
+        },
+      ],
+    });
+  }
+
+  /*
+   * Filtros diretamente ligados ao anúncio.
+   */
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    where.price = {};
+
+    if (minPrice !== undefined) {
+      where.price.gte = minPrice;
+    }
+
+    if (maxPrice !== undefined) {
+      where.price.lte = maxPrice;
+    }
+  }
+
+  if (state?.trim()) {
+    andConditions.push({
+      state: {
+        equals: state.trim(),
+        mode: 'insensitive',
       },
+    });
+  }
+
+  if (city?.trim()) {
+    andConditions.push({
+      city: {
+        equals: city.trim(),
+        mode: 'insensitive',
+      },
+    });
+  }
+
+  if (acceptsProposals !== undefined) {
+    andConditions.push({
+      acceptsProposals,
+    });
+  }
+
+  /*
+   * Filtros do modelo do veículo.
+   */
+  const vehicleModelWhere: Prisma.VehicleModelWhereInput = {};
+
+  if (vehicleModelId) {
+    vehicleModelWhere.id = vehicleModelId;
+  }
+
+  if (minYear !== undefined || maxYear !== undefined) {
+    vehicleModelWhere.manufactureYear = {};
+
+    if (minYear !== undefined) {
+      vehicleModelWhere.manufactureYear.gte = minYear;
+    }
+
+    if (maxYear !== undefined) {
+      vehicleModelWhere.manufactureYear.lte = maxYear;
+    }
+  }
+
+  if (manufacturerId) {
+    vehicleModelWhere.manufacturerId = manufacturerId;
+  }
+
+  if (vehicleTypeId || categoryId) {
+    vehicleModelWhere.vehicleType = {};
+
+    if (vehicleTypeId) {
+      vehicleModelWhere.vehicleType.id = vehicleTypeId;
+    }
+
+    if (categoryId) {
+      vehicleModelWhere.vehicleType.categoryId = categoryId;
+    }
+  }
+
+  if (Object.keys(vehicleModelWhere).length > 0) {
+    andConditions.push({
+      vehicleModel: vehicleModelWhere,
+    });
+  }
+
+  /*
+   * Filtros dos atributos dinâmicos.
+   */
+  if (attributes) {
+    const attributeConditions =
+      await this.buildAttributeFilters(attributes);
+
+    andConditions.push(...attributeConditions);
+  }
+
+  if (andConditions.length > 0) {
+    where.AND = andConditions;
+  }
+
+  /*
+   * Ordenação.
+   */
+  let orderBy: Prisma.ListingOrderByWithRelationInput;
+
+  switch (sortBy) {
+    case 'price':
+      orderBy = {
+        price: sortOrder,
+      };
+      break;
+
+    case 'year':
+      orderBy = {
+        vehicleModel: {
+          manufactureYear: sortOrder,
+        },
+      };
+      break;
+
+    case 'createdAt':
+    default:
+      orderBy = {
+        createdAt: sortOrder,
+      };
+      break;
+  }
+
+  /*
+   * Paginação.
+   */
+  const skip = (page - 1) * limit;
+
+  const [total, listings] = await this.prisma.$transaction([
+    this.prisma.listing.count({
+      where,
+    }),
+
+    this.prisma.listing.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy,
 
       include: {
-        seller: {
-          select: this.publicSellerSelect,
-        },
-
         vehicleModel: {
           include: {
             manufacturer: true,
-
             vehicleType: {
               include: {
                 category: true,
@@ -136,13 +621,22 @@ private async findListingInternal(
             displayOrder: 'asc',
           },
         },
-      },
 
-      orderBy: {
-        createdAt: 'desc',
+        seller: true,
       },
-    });
-  }
+    }),
+  ]);
+
+  return {
+    data: listings,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
 
   async findOne(id: string) {
     const listing = await this.prisma.listing.findUnique({

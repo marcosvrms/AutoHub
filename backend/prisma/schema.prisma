@@ -38,6 +38,12 @@ enum ListingStatus {
   INACTIVE
 }
 
+enum WalletTransactionType {
+  DEPOSIT
+  PURCHASE
+  SALE
+}
+
 model User {
   id   String @id @default(uuid())
   name String
@@ -65,10 +71,16 @@ model User {
   cep               String?
   stateRegistration String?
 
+  balance Decimal @default(0) @db.Decimal(15, 2)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   listings Listing[]
+
+  purchasesAsBuyer   Purchase[]          @relation("PurchaseBuyer")
+  purchasesAsSeller  Purchase[]          @relation("PurchaseSeller")
+  walletTransactions WalletTransaction[]
 }
 
 model Category {
@@ -162,7 +174,9 @@ model Listing {
   soldAt    DateTime?
 
   seller       User?        @relation(fields: [sellerId], references: [id], onDelete: SetNull)
-  vehicleModel VehicleModel @relation(fields: [vehicleModelId], references: [id], onDelete: Cascade)
+  vehicleModel VehicleModel @relation(fields: [vehicleModelId], references: [id], onDelete: Restrict)
+
+  purchase Purchase?
 
   attributeValues ListingAttributeValue[]
   images          ListingImage[]
@@ -212,4 +226,51 @@ model ListingImage {
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   @@unique([listingId, displayOrder])
+}
+
+model WalletTransaction {
+  id String @id @default(uuid())
+
+  userId String
+  type   WalletTransactionType
+
+  amount      Decimal @db.Decimal(15, 2)
+  description String?
+
+  purchaseId String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([purchaseId])
+  @@index([createdAt])
+}
+
+model Purchase {
+  id String @id @default(uuid())
+
+  listingId String @unique
+
+  buyerId  String
+  sellerId String?
+
+  amount Decimal @db.Decimal(15, 2)
+
+  purchasedAt DateTime @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Restrict)
+
+  buyer User @relation("PurchaseBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+
+  seller User? @relation("PurchaseSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+
+  walletTransactions WalletTransaction[]
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([purchasedAt])
 }
