@@ -1,6 +1,5 @@
 import {
   IsBoolean,
-  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -8,13 +7,9 @@ import {
   IsString,
   IsUUID,
   MaxLength,
-  Min,
 } from 'class-validator';
 
 export class CreateListingDto {
-  @IsUUID()
-  sellerId: string;
-
   @IsUUID()
   vehicleModelId: string;
 
@@ -27,7 +22,9 @@ export class CreateListingDto {
   @IsString()
   description?: string;
 
-  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNumber({
+    maxDecimalPlaces: 2,
+  })
   @IsPositive()
   price: number;
 

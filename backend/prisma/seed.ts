@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
+import { AccountType, UserRole } from '../src/generated/prisma/client.js';
+import { hashPassword } from '../src/users/password.utils.js';
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -47,3 +49,46 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+  const adminPassword =
+  await hashPassword(
+    'AutoHub@123456',
+  );
+
+await prisma.user.upsert({
+  where: {
+    email: 'admin@autohub.local',
+  },
+
+  update: {
+    passwordHash: adminPassword,
+    role: UserRole.ADMIN,
+    accountType:
+      AccountType.INDIVIDUAL,
+  },
+
+  create: {
+    name: 'Administrador AutoHub',
+
+    email: 'admin@autohub.local',
+
+    passwordHash: adminPassword,
+
+    accountType:
+      AccountType.INDIVIDUAL,
+
+    role: UserRole.ADMIN,
+
+    document: '52998224725',
+
+    phone: '49999999999',
+
+    birthDate:
+      new Date('2000-01-01'),
+
+    city: 'Videira',
+
+    state: 'SC',
+
+    country: 'Brasil',
+  },
+});

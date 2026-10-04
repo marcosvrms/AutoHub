@@ -8,15 +8,18 @@ import {
 import {
   AttributeType,
   ListingStatus,
+  UserRole
 } from '../generated/prisma/client.js';
 
 import { PrismaService } from '../prisma/prisma.service.js';
-
+import { ForbiddenException } from '@nestjs/common';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.js';
 import { CreateListingDto } from './dto/create-listing.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
 import { SetListingAttributesDto } from './dto/set-listing-attributes.dto.js';
 import { ListingAttributeValueDto } from './dto/listing-attribute-value.dto.js';
 import { CreateListingImageDto } from './dto/create-listing-image.dto.js';
+
 
 @Injectable()
 export class ListingsService {
@@ -30,11 +33,87 @@ export class ListingsService {
     state: true,
     country: true,
   } as const;
+  
+private ensureOwnerOrAdmin(
+  sellerId: string | null,
+  currentUser: AuthenticatedUser,
+  ) {
+    const isAdmin =
+      currentUser.role === 'ADMIN';
 
+     const isOwner = 
+      sellerId !== null && currentUser.sub === sellerId;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException(
+        'Você não possui permissão para modificar este anúncio.',
+      );
+    }
+  }
+  
+private async findListingInternal(
+  id: string,
+) {
+  const listing =
+    await this.prisma.listing.findUnique({
+      where: {
+        id,
+      },
+
+      include: {
+        seller: {
+          select: this.publicSellerSelect,
+        },
+
+        vehicleModel: {
+          include: {
+            manufacturer: true,
+
+            vehicleType: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
+
+        attributeValues: {
+          include: {
+            modelAttribute: true,
+
+            selectedOptions: {
+              include: {
+                modelAttributeOption: true,
+              },
+            },
+          },
+        },
+
+        images: {
+          orderBy: {
+            displayOrder: 'asc',
+          },
+        },
+      },
+    });
+
+  if (!listing) {
+    throw new NotFoundException(
+      'Anúncio não encontrado.',
+    );
+  }
+
+  return listing;
+}
+  
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll() {
     return this.prisma.listing.findMany({
+      where: {
+      status: ListingStatus.PUBLISHED,
+      },
+
       include: {
         seller: {
           select: this.publicSellerSelect,
@@ -117,9 +196,9 @@ export class ListingsService {
     return listing;
   }
 
-  async create(dto: CreateListingDto) {
-    await this.ensureSellerExists(dto.sellerId);
-
+  async create( sellerId: string, dto: CreateListingDto,
+) {
+    await this.ensureSellerExists(sellerId);
     await this.ensureVehicleModelExists(
       dto.vehicleModelId,
     );
@@ -135,7 +214,7 @@ export class ListingsService {
 
     return this.prisma.listing.create({
       data: {
-        sellerId: dto.sellerId,
+        sellerId: sellerId,
 
         vehicleModelId: dto.vehicleModelId,
 
@@ -177,10 +256,16 @@ export class ListingsService {
   }
 
   async update(
-    id: string,
-    dto: UpdateListingDto,
+  id: string,
+  dto: UpdateListingDto,
+  currentUser: AuthenticatedUser,
   ) {
-    const listing = await this.findOne(id);
+    const listing =
+    await this.findListingInternal(id);
+    this.ensureOwnerOrAdmin(
+      listing.sellerId,
+      currentUser,
+    );
 
     this.ensureEditableStatus(listing.status);
 
@@ -231,7 +316,7 @@ export class ListingsService {
     });
   }
 
-  async publish(id: string) {
+  async publish(id: string, currentUser: AuthenticatedUser) {
     const listing = await this.findOne(id);
 
     if (
@@ -243,6 +328,7 @@ export class ListingsService {
       );
     }
 
+    this.ensureOwnerOrAdmin(listing.sellerId, currentUser);
     await this.ensureReadyToPublish(id);
 
     return this.prisma.listing.update({
@@ -256,7 +342,7 @@ export class ListingsService {
     });
   }
 
-  async deactivate(id: string) {
+  async deactivate(id: string, currentUser: AuthenticatedUser) {
     const listing = await this.findOne(id);
 
     if (listing.status !== ListingStatus.PUBLISHED) {
@@ -265,6 +351,7 @@ export class ListingsService {
       );
     }
 
+    this.ensureOwnerOrAdmin(listing.sellerId, currentUser);
     return this.prisma.listing.update({
       where: {
         id,
@@ -276,7 +363,7 @@ export class ListingsService {
     });
   }
 
-  async markAsSold(id: string) {
+  async markAsSold(id: string, currentUser:AuthenticatedUser) {
     const listing = await this.findOne(id);
 
     if (listing.status !== ListingStatus.PUBLISHED) {
@@ -285,6 +372,7 @@ export class ListingsService {
       );
     }
 
+    this.ensureOwnerOrAdmin(listing.sellerId, currentUser);
     return this.prisma.listing.update({
       where: {
         id,
@@ -335,22 +423,51 @@ export class ListingsService {
     });
   }
 
+  async findAllForAdmin() {
+  return this.prisma.listing.findMany({
+    include: {
+      seller: {
+        select: this.publicSellerSelect,
+      },
+
+      vehicleModel: {
+        include: {
+          manufacturer: true,
+
+          vehicleType: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      },
+
+      images: {
+        orderBy: {
+          displayOrder: 'asc',
+        },
+      },
+    },
+
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+}
+
   async updateAttributes(
     listingId: string,
     dto: SetListingAttributesDto,
+    currentUser: AuthenticatedUser
   ) {
-    const listing = await this.prisma.listing.findUnique({
-      where: {
-        id: listingId,
-      },
-    });
-
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId }});
+    
     if (!listing) {
       throw new NotFoundException(
         'Anúncio não encontrado.',
       );
     }
-
+    this.ensureOwnerOrAdmin(listing.sellerId, currentUser);
     this.ensureEditableStatus(listing.status);
 
     const modelAttributes =
@@ -405,6 +522,7 @@ export class ListingsService {
       );
     }
 
+    
     await this.prisma.$transaction(
       async (tx) => {
         for (const value of dto.values) {
@@ -482,6 +600,40 @@ export class ListingsService {
     return this.findAttributes(listingId);
   }
 
+  async findMine(
+  userId: string,
+) {
+  return this.prisma.listing.findMany({
+    where: {
+      sellerId: userId,
+    },
+
+    include: {
+      vehicleModel: {
+        include: {
+          manufacturer: true,
+
+          vehicleType: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      },
+
+      images: {
+        orderBy: {
+          displayOrder: 'asc',
+        },
+      },
+    },
+
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+}
+
   // =========================================================
   // IMAGENS DO ANÚNCIO
   // =========================================================
@@ -503,12 +655,14 @@ export class ListingsService {
   async addImage(
     listingId: string,
     dto: CreateListingImageDto,
+    currentUser: AuthenticatedUser
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: {
         id: listingId,
       },
     });
+    
 
     if (!listing) {
       throw new NotFoundException(
@@ -516,6 +670,7 @@ export class ListingsService {
       );
     }
 
+    this.ensureOwnerOrAdmin(listing.sellerId, currentUser);
     this.ensureEditableStatus(listing.status);
 
     const imageCount =
@@ -597,9 +752,20 @@ export class ListingsService {
     });
   }
 
+  async remove(id: string) {
+    await this.findListingInternal(id);
+
+    return this.prisma.listing.delete({
+      where: {
+        id,
+      },
+    });
+  }
+
   async removeImage(
     listingId: string,
     imageId: string,
+    currentUser: AuthenticatedUser
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: {
@@ -613,6 +779,7 @@ export class ListingsService {
       );
     }
 
+    this.ensureOwnerOrAdmin(listing.sellerId, currentUser);
     this.ensureEditableStatus(listing.status);
 
     const image =

@@ -8,6 +8,9 @@ import { VehicleModelsModule } from './vehicle-models/vehicle-models.module.js';
 import { ModelAttributesModule } from './model-attributes/model-attributes.module.js';
 import { ListingsModule } from './listings/listings.module.js';
 import { UsersModule } from './users/users.module.js';
+import { AuthModule } from './auth/auth.module.js';
+import { AppController } from './app.controller.js';
+import { AppService } from './app.service.js';
 
 @Module({
   imports: [
@@ -22,6 +25,10 @@ import { UsersModule } from './users/users.module.js';
     ModelAttributesModule,
     ListingsModule,
     UsersModule,
+    AuthModule,
   ],
+  controllers: [AppController],
+
+  providers: [AppService],
 })
 export class AppModule {}

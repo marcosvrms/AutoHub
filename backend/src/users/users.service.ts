@@ -5,18 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import {
-  AccountType,
-  ListingStatus,
-} from '../generated/prisma/client.js';
-
+import { AccountType, ListingStatus, UserRole } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
-import {
-  hashPassword,
-} from './password.utils.js';
+import { hashPassword } from './password.utils.js';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.js';
+import { ForbiddenException } from '@nestjs/common';
 
 @Injectable()
 export class UsersService {
@@ -37,6 +32,19 @@ export class UsersService {
     private readonly prisma: PrismaService,
   ) {}
 
+  private ensureOwnerOrAdmin(
+  targetUserId: string,
+  currentUser: AuthenticatedUser,
+) {
+  const isAdmin = currentUser.role === UserRole.ADMIN;
+  const isOwner = currentUser.sub === targetUserId;
+
+  if (!isAdmin && !isOwner) {
+    throw new ForbiddenException(
+      'Você não possui permissão para alterar este usuário.',
+    );
+  }
+}
   // =========================================================
   // CONSULTAS PÚBLICAS
   // =========================================================
@@ -184,9 +192,11 @@ export class UsersService {
   // =========================================================
 
   async update(
-    id: string,
-    dto: UpdateUserDto,
-  ) {
+  id: string,
+  dto: UpdateUserDto,
+  currentUser: AuthenticatedUser,
+) {
+    this.ensureOwnerOrAdmin(id, currentUser);
     const current =
       await this.findPrivateUser(
         id,
@@ -352,7 +362,8 @@ export class UsersService {
   // EXCLUSÃO
   // =========================================================
 
-  async remove(id: string) {
+  async remove(id: string, currentUser: AuthenticatedUser) {
+    this.ensureOwnerOrAdmin(id, currentUser);
     await this.findPrivateUser(
       id,
     );
@@ -397,6 +408,19 @@ export class UsersService {
   // CONSULTAS INTERNAS
   // =========================================================
 
+  async findByIdForAuth(id: string) {
+  return this.prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      accountType: true,
+    },
+  });
+}
+  
   async findByEmail(
     email: string,
   ) {

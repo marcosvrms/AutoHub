@@ -12,14 +12,41 @@ import { CreateListingDto } from './dto/create-listing.dto.js';
 import { CreateListingImageDto } from './dto/create-listing-image.dto.js';
 import { SetListingAttributesDto } from './dto/set-listing-attributes.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
-
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.js';
 import { ListingsService } from './listings.service.js';
+import { UserRole } from '../generated/prisma/client.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
 
 @Controller('listings')
 export class ListingsController {
   constructor(
     private readonly listingsService: ListingsService,
   ) {}
+
+@Roles(UserRole.ADMIN)
+@Get('admin/all')
+findAllForAdmin() {
+  return this.listingsService.findAllForAdmin();
+}
+
+@Roles(UserRole.ADMIN)
+@Delete(':id')
+remove(
+  @Param('id') id: string,
+) {
+  return this.listingsService.remove(id);
+}
+
+  @Get('mine')
+findMine(
+  @CurrentUser()
+  user: AuthenticatedUser,
+) {
+  return this.listingsService.findMine(
+    user.sub,
+  );
+}
 
   @Get()
   findAll() {
@@ -39,10 +66,12 @@ export class ListingsController {
   updateAttributes(
     @Param('id') id: string,
     @Body() dto: SetListingAttributesDto,
+    @CurrentUser() user: AuthenticatedUser
   ) {
     return this.listingsService.updateAttributes(
       id,
       dto,
+      user
     );
   }
 
@@ -59,10 +88,12 @@ export class ListingsController {
   addImage(
     @Param('id') id: string,
     @Body() dto: CreateListingImageDto,
+    @CurrentUser() user: AuthenticatedUser
   ) {
     return this.listingsService.addImage(
       id,
       dto,
+      user
     );
   }
 
@@ -70,10 +101,12 @@ export class ListingsController {
   removeImage(
     @Param('listingId') listingId: string,
     @Param('imageId') imageId: string,
+    @CurrentUser() user: AuthenticatedUser
   ) {
     return this.listingsService.removeImage(
       listingId,
       imageId,
+      user
     );
   }
 
@@ -88,9 +121,12 @@ export class ListingsController {
 
   @Post()
   create(
-    @Body() dto: CreateListingDto,
+  @Body() dto: CreateListingDto,
+  @CurrentUser()
+  user: AuthenticatedUser,
   ) {
     return this.listingsService.create(
+      user.sub,
       dto,
     );
   }
@@ -99,37 +135,45 @@ export class ListingsController {
   update(
     @Param('id') id: string,
     @Body() dto: UpdateListingDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.listingsService.update(
       id,
       dto,
+      user
     );
   }
 
   @Post(':id/publish')
   publish(
     @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser
   ) {
     return this.listingsService.publish(
       id,
+      user
     );
   }
 
   @Post(':id/deactivate')
   deactivate(
     @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser
   ) {
     return this.listingsService.deactivate(
       id,
+      user
     );
   }
 
   @Post(':id/sell')
   markAsSold(
     @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser
   ) {
     return this.listingsService.markAsSold(
       id,
+      user
     );
   }
 }
