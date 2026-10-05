@@ -131,3 +131,7 @@ npx prisma db seed
 
 ### 7. Executar backend
 npm run start:dev
+
+### 8. Executar frontend
+npm run dev
+E acessar o localhost que seu programa informar
