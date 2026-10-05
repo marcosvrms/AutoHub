@@ -130,8 +130,15 @@ npx prisma generate
 npx prisma db seed
 
 ### 7. Executar backend
+na pasta AutHub/backend
 npm run start:dev
 
 ### 8. Executar frontend
+na pasta AutoHub/frontend
 npm run dev
 E acessar o localhost que seu programa informar
+
+### 9. Conta de Login
+Foi posta no seed.ts, a seguinte conta para testar as funcionalidades do AutoHub
+Email: admin@autohub.local
+Senha: AutoHub@Admin123
