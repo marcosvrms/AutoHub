@@ -36,7 +36,7 @@ export const listingService = {
   },
 
   async findOne(id: string): Promise<Listing> {
-    return apiRequest<Listing>(`/listings/${id}`, { auth: true });
+    return apiRequest<Listing>(`/listings/${id}`);
   },
 
   async findMine(): Promise<Listing[]> {

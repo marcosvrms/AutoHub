@@ -70,17 +70,11 @@ export function TopStatusBar({ model, user }: TopStatusBarProps) {
             >
               {/* Thumb */}
               <div className="w-[52px] h-[32px] rounded border border-white/10 overflow-hidden bg-white/3">
-                {model.catalogImage ? (
-                  <img
-                    src={model.catalogImage}
-                    alt={model.name}
-                    className="w-full h-full object-cover object-center"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Zap size={12} className="text-white/20" />
-                  </div>
-                )}
+                <img
+                  src={model.catalogImage || 'https://img.magnific.com/fotos-premium/o-carro-misterioso-uma-apresentacao-coberta-por-um-pano-escuro-criando-usando-ferramentas-generativas-de-ia_852340-1273.jpg'}
+                  alt={model.name}
+                  className="w-full h-full object-cover object-center"
+                />
               </div>
 
               {/* Info */}

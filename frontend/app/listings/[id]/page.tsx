@@ -64,11 +64,11 @@ export default function ListingDetailsPage() {
         <div className="lg:col-span-2 flex flex-col gap-8">
           <GlassPanel padding="p-0" className="overflow-hidden">
             <div className="relative aspect-video bg-black/50">
-              {imageUrl ? (
-                <img src={imageUrl} alt={listing.title} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-white/20">Imagem não disponível</div>
-              )}
+              <img
+                src={imageUrl || 'https://img.magnific.com/fotos-premium/o-carro-misterioso-uma-apresentacao-coberta-por-um-pano-escuro-criando-usando-ferramentas-generativas-de-ia_852340-1273.jpg'}
+                alt={listing.title}
+                className="w-full h-full object-cover"
+              />
             </div>
           </GlassPanel>
 

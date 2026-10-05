@@ -39,20 +39,14 @@ export function VehicleCard({ model, index = 0, onClick, isSelected = false }: V
       )}
       <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-[#00D4FF]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-      {/* Imagem */}
+        {/* Imagem */}
       <div className="relative h-40 overflow-hidden bg-gradient-to-b from-white/3 to-transparent">
-        {model.catalogImage ? (
-          <img
-            src={model.catalogImage}
-            alt={`${model.manufacturer?.name ?? ''} ${model.name} ${model.manufactureYear}`}
-            className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <VehicleImagePlaceholder name={model.name} />
-          </div>
-        )}
+        <img
+          src={model.catalogImage || 'https://img.magnific.com/fotos-premium/o-carro-misterioso-uma-apresentacao-coberta-por-um-pano-escuro-criando-usando-ferramentas-generativas-de-ia_852340-1273.jpg'}
+          alt={`${model.manufacturer?.name ?? ''} ${model.name} ${model.manufactureYear}`}
+          className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+          loading="lazy"
+        />
         {/* Overlay gradiente na imagem */}
         <div className="absolute inset-0 bg-gradient-to-t from-[rgba(6,10,24,0.85)] via-[rgba(6,10,24,0.20)] to-transparent" />
 

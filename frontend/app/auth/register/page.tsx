@@ -4,10 +4,11 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { GlassPanel } from '@/src/components/ui/GlassPanel';
-import { Button, Input } from '@/src/components/ui/FormElements';
+import { Button, Input, Select } from '@/src/components/ui/FormElements';
 import { authService } from '@/src/services/auth.service';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useToast } from '@/src/contexts/ToastContext';
+import type { AccountType } from '@/src/types';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -19,15 +20,26 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    cpfCnpj: '',
+    accountType: 'INDIVIDUAL' as AccountType,
+    document: '',
     phone: '',
+    birthDate: '',
+    foundationDate: '',
     city: '',
     state: '',
   });
   const [isLoading, setIsLoading] = useState(false);
 
+  const isIndividual = formData.accountType === 'INDIVIDUAL';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.password.length < 12) {
+      error('A senha deve ter pelo menos 12 caracteres.');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       error('As senhas não coincidem.');
       return;
@@ -39,10 +51,14 @@ export default function RegisterPage() {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        cpfCnpj: formData.cpfCnpj,
+        accountType: formData.accountType,
+        document: formData.document,
         phone: formData.phone,
         city: formData.city,
         state: formData.state,
+        ...(isIndividual
+          ? { birthDate: formData.birthDate }
+          : { foundationDate: formData.foundationDate }),
       });
       
       // Auto login após cadastro
@@ -50,8 +66,9 @@ export default function RegisterPage() {
       
       success('Conta criada com sucesso!');
       router.push('/');
-    } catch (err: any) {
-      error(err.message || 'Erro ao criar conta.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao criar conta.';
+      error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -81,19 +98,40 @@ export default function RegisterPage() {
               value={formData.email}
               onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}
             />
-            <Input
-              label="CPF ou CNPJ"
-              required
-              value={formData.cpfCnpj}
-              onChange={(e) => setFormData(p => ({ ...p, cpfCnpj: e.target.value }))}
+            <Select
+              label="Tipo de Conta"
+              value={formData.accountType}
+              onChange={(e) => setFormData(p => ({ ...p, accountType: e.target.value as AccountType }))}
+              options={[
+                { value: 'INDIVIDUAL', label: 'Pessoa Física' },
+                { value: 'DEALERSHIP', label: 'Concessionária' },
+              ]}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-5">
             <Input
-              label="Senha"
+              label={isIndividual ? 'CPF' : 'CNPJ'}
+              placeholder={isIndividual ? '000.000.000-00' : '00.000.000/0000-00'}
+              required
+              value={formData.document}
+              onChange={(e) => setFormData(p => ({ ...p, document: e.target.value }))}
+            />
+            <Input
+              label="Telefone"
+              placeholder="(49) 99999-9999"
+              required
+              value={formData.phone}
+              onChange={(e) => setFormData(p => ({ ...p, phone: e.target.value }))}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-5">
+            <Input
+              label="Senha (mín. 12 caracteres)"
               type="password"
               required
+              minLength={12}
               value={formData.password}
               onChange={(e) => setFormData(p => ({ ...p, password: e.target.value }))}
             />
@@ -106,13 +144,21 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-5">
-            <Input
-              label="Telefone"
-              required
-              value={formData.phone}
-              onChange={(e) => setFormData(p => ({ ...p, phone: e.target.value }))}
-            />
+          {/* Data de nascimento ou fundação conforme tipo de conta */}
+          <Input
+            label={isIndividual ? 'Data de Nascimento' : 'Data de Fundação'}
+            type="date"
+            required
+            value={isIndividual ? formData.birthDate : formData.foundationDate}
+            onChange={(e) =>
+              setFormData(p => (isIndividual
+                ? { ...p, birthDate: e.target.value }
+                : { ...p, foundationDate: e.target.value }
+              ))
+            }
+          />
+
+          <div className="grid grid-cols-2 gap-5">
             <Input
               label="Cidade"
               required
@@ -123,6 +169,7 @@ export default function RegisterPage() {
               label="Estado (UF)"
               required
               maxLength={2}
+              placeholder="SC"
               value={formData.state}
               onChange={(e) => setFormData(p => ({ ...p, state: e.target.value.toUpperCase() }))}
             />

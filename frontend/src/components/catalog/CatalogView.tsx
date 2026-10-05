@@ -128,31 +128,12 @@ export function CatalogView() {
               transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
               className="flex-1 relative"
             >
-              {selected?.catalogImage ? (
-                <img
-                  src={selected.catalogImage}
-                  alt={`${selected.manufacturer?.name ?? ''} ${selected.name} ${selected.manufactureYear}`}
+              <img
+                  src={selected?.catalogImage || 'https://img.magnific.com/fotos-premium/o-carro-misterioso-uma-apresentacao-coberta-por-um-pano-escuro-criando-usando-ferramentas-generativas-de-ia_852340-1273.jpg'}
+                  alt={`${selected?.manufacturer?.name ?? ''} ${selected?.name ?? ''} ${selected?.manufactureYear ?? ''}`}
                   className="w-full h-full object-contain object-center drop-shadow-2xl"
                   style={{ filter: 'drop-shadow(0 20px 60px rgba(0,212,255,0.15))' }}
                 />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-4">
-                  <svg viewBox="0 0 120 60" className="w-64 h-32 fill-current text-white/8">
-                    <rect x="4" y="20" width="112" height="30" rx="6" />
-                    <rect x="20" y="8" width="60" height="24" rx="8" />
-                    <circle cx="28" cy="50" r="10" />
-                    <circle cx="92" cy="50" r="10" />
-                  </svg>
-                  {selected && (
-                    <div className="text-center">
-                      <p className="text-white/50 text-lg font-bold">
-                        {selected.manufacturer?.name} {selected.name}
-                      </p>
-                      <p className="text-white/25 text-sm">{selected.manufactureYear}</p>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Gradiente inferior */}
               <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[rgba(6,10,24,1)] to-transparent" />

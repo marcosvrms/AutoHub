@@ -81,15 +81,11 @@ export default function ModelDetailsPage() {
 
         {/* CENTER: Image */}
         <div className="flex-1 relative flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[rgba(0,212,255,0.05)] via-transparent to-transparent">
-          {model.catalogImage ? (
-            <img
-              src={model.catalogImage}
+          <img
+              src={model.catalogImage || 'https://img.magnific.com/fotos-premium/o-carro-misterioso-uma-apresentacao-coberta-por-um-pano-escuro-criando-usando-ferramentas-generativas-de-ia_852340-1273.jpg'}
               alt={model.name}
               className="w-4/5 h-auto max-h-[70%] object-contain drop-shadow-[0_20px_50px_rgba(0,212,255,0.2)]"
             />
-          ) : (
-            <div className="text-white/20">Imagem não disponível</div>
-          )}
           
           <div className="absolute bottom-10 flex gap-4">
             <Link href={`/listings?vehicleModelId=${model.id}`}>

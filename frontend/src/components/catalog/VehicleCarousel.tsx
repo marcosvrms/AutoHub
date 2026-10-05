@@ -87,23 +87,12 @@ export function VehicleCarousel({
                 >
                   {/* Thumb imagem */}
                   <div className="h-[88px] relative overflow-hidden bg-white/3">
-                    {model.catalogImage ? (
-                      <img
-                        src={model.catalogImage}
-                        alt={model.name}
-                        className="w-full h-full object-cover object-center"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white/10">
-                        <svg viewBox="0 0 60 30" className="w-16 h-8 fill-current">
-                          <rect x="2" y="10" width="56" height="16" rx="3" />
-                          <rect x="10" y="4" width="30" height="12" rx="4" />
-                          <circle cx="14" cy="26" r="5" />
-                          <circle cx="46" cy="26" r="5" />
-                        </svg>
-                      </div>
-                    )}
+                    <img
+                      src={model.catalogImage || 'https://img.magnific.com/fotos-premium/o-carro-misterioso-uma-apresentacao-coberta-por-um-pano-escuro-criando-usando-ferramentas-generativas-de-ia_852340-1273.jpg'}
+                      alt={model.name}
+                      className="w-full h-full object-cover object-center"
+                      loading="lazy"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-[rgba(6,10,24,0.8)] to-transparent" />
                     {isSelected && (
                       <div className="absolute inset-x-0 top-0 h-0.5 bg-[#00D4FF]" />
