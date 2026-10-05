@@ -11,6 +11,7 @@ import {
 import { CreateModelAttributeDto } from './dto/create-model-attribute.dto.js';
 import { UpdateModelAttributeDto } from './dto/update-model-attribute.dto.js';
 import { ModelAttributesService } from './model-attributes.service.js';
+import { Public } from '../auth/decorators/public.decorator.js';
 
 @Controller()
 export class ModelAttributesController {
@@ -18,6 +19,7 @@ export class ModelAttributesController {
     private readonly modelAttributesService: ModelAttributesService,
   ) {}
 
+  @Public()
   @Get('vehicle-models/:vehicleModelId/attributes')
   findByVehicleModel(
     @Param('vehicleModelId') vehicleModelId: string,
@@ -27,6 +29,7 @@ export class ModelAttributesController {
     );
   }
 
+  @Public()
   @Get('model-attributes/:id')
   findOne(@Param('id') id: string) {
     return this.modelAttributesService.findOne(id);

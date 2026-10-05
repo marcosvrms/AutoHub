@@ -16,7 +16,7 @@ import {
 
 import { ListingSearchDto } from './dto/listing-search.dto.js';
 import { CreateListingDto } from './dto/create-listing.dto.js';
-import { CreateListingImageDto } from './dto/create-listing-image.dto.js';
+import { CreateListingImageDto, UploadListingImageDto } from './dto/create-listing-image.dto.js';
 import { SetListingAttributesDto } from './dto/set-listing-attributes.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
@@ -67,6 +67,7 @@ findMine(
   return this.listingsService.findAll(query);
 }
 
+  @Public()
   @Get(':id/attributes')
   findAttributes(
     @Param('id') id: string,
@@ -89,6 +90,7 @@ findMine(
     );
   }
 
+  @Public()
   @Get(':id/images')
   findImages(
     @Param('id') id: string,
@@ -153,7 +155,7 @@ async uploadImage(
       }),
   )
   file: Express.Multer.File,
-  @Body() dto: CreateListingImageDto,
+  @Body() dto: UploadListingImageDto,
   @CurrentUser() user: AuthenticatedUser,
     ) {
       return this.listingsService.addUploadedImage(
@@ -179,6 +181,7 @@ async uploadImage(
     );
   }
 
+  @Public()
   @Get(':id')
   findOne(
     @Param('id') id: string,

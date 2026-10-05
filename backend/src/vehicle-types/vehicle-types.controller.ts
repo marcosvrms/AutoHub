@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 
 import { VehicleTypesService } from './vehicle-types.service.js';
+import { Public } from '../auth/decorators/public.decorator.js';
 
 @Controller('vehicle-types')
 export class VehicleTypesController {
@@ -16,11 +17,13 @@ export class VehicleTypesController {
     private readonly vehicleTypesService: VehicleTypesService,
   ) {}
 
+  @Public()
   @Get()
   findAll() {
     return this.vehicleTypesService.findAll();
   }
 
+  @Public()
   @Get('category/:categoryId')
   findByCategory(
     @Param('categoryId') categoryId: string,
@@ -30,6 +33,7 @@ export class VehicleTypesController {
     );
   }
 
+  @Public()
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.vehicleTypesService.findOne(id);

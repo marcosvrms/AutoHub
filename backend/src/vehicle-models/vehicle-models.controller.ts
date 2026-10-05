@@ -11,6 +11,7 @@ import {
 import { CreateVehicleModelDto } from './dto/create-vehicle-model.dto.js';
 import { UpdateVehicleModelDto } from './dto/update-vehicle-model.dto.js';
 import { VehicleModelsService } from './vehicle-models.service.js';
+import { Public } from '../auth/decorators/public.decorator.js';
 
 @Controller('vehicle-models')
 export class VehicleModelsController {
@@ -18,11 +19,13 @@ export class VehicleModelsController {
     private readonly vehicleModelsService: VehicleModelsService,
   ) {}
 
+  @Public()
   @Get()
   findAll() {
     return this.vehicleModelsService.findAll();
   }
 
+  @Public()
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.vehicleModelsService.findOne(id);

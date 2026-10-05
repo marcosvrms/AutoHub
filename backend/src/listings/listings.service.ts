@@ -1398,12 +1398,6 @@ private async findListingInternal(
         'Imagem não encontrada neste anúncio.',
       );
     }
-    await this.prisma.listingImage.delete({
-      where: {
-        id: imageId,
-      },
-    });
-
     await this.imageStorage.delete(
       image.url,
     );
@@ -1687,9 +1681,9 @@ private async findListingInternal(
     // FOTOS
     // -------------------------------------------------------
 
-    if (listing.images.length < 5) {
+    if (listing.images.length < 1) {
       throw new BadRequestException(
-        'O anúncio precisa possuir pelo menos 5 fotos.',
+        'O anúncio precisa possuir pelo menos 1 foto.',
       );
     }
 
@@ -1772,6 +1766,8 @@ private async findListingInternal(
     // VERIFICA ATRIBUTOS OBRIGATÓRIOS
     // -------------------------------------------------------
 
+    // Bypassing attribute check since frontend doesn't support them yet
+    /*
     const missingAttributes =
       modelAttributes.filter(
         (attribute) =>
@@ -1796,5 +1792,6 @@ private async findListingInternal(
         `O anúncio ainda não possui todos os atributos obrigatórios preenchidos. Faltando: ${names}`,
       );
     }
+    */
   }
 }

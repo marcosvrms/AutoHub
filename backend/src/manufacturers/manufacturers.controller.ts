@@ -8,6 +8,7 @@ import {
   Post,
 } from '@nestjs/common';
 
+import { Public } from '../auth/decorators/public.decorator.js';
 import { ManufacturersService } from './manufacturers.service.js';
 
 @Controller('manufacturers')
@@ -16,11 +17,13 @@ export class ManufacturersController {
     private readonly manufacturersService: ManufacturersService,
   ) {}
 
+  @Public()
   @Get()
   findAll() {
     return this.manufacturersService.findAll();
   }
 
+  @Public()
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.manufacturersService.findOne(id);
